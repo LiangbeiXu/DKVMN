@@ -61,7 +61,7 @@ class Model():
 		reuse_flag = False
 
 		# Logics
-		for i in xrange(self.args.seq_len):
+		for i in range(self.args.seq_len):
 			# To reuse linear vectors
 			if i != 0:
 				reuse_flag = True
@@ -149,7 +149,7 @@ class Model():
 		best_valid_auc = 0
 
 		# Training
-		for epoch in xrange(0, self.args.num_epochs):
+		for epoch in range(0, self.args.num_epochs):
 			if self.args.show:
 				bar.next()
 
@@ -159,7 +159,7 @@ class Model():
 			learning_rate = tf.train.exponential_decay(self.args.initial_lr, global_step=self.global_step, decay_steps=self.args.anneal_interval*training_step, decay_rate=0.667, staircase=True)
 
 			#print('Epoch %d starts with learning rate : %3.5f' % (epoch+1, self.sess.run(learning_rate)))
-			for steps in xrange(training_step):
+			for steps in range(training_step):
 				# [batch size, seq_len]
 				q_batch_seq = q_data_shuffled[steps*self.args.batch_size:(steps+1)*self.args.batch_size, :]
 				qa_batch_seq = qa_data_shuffled[steps*self.args.batch_size:(steps+1)*self.args.batch_size, :]
@@ -215,13 +215,19 @@ class Model():
 				# Validation
 				valid_q = valid_q_data[s*self.args.batch_size:(s+1)*self.args.batch_size, :]
 				valid_qa = valid_qa_data[s*self.args.batch_size:(s+1)*self.args.batch_size, :]
+				#print('valid_qa', valid_qa)
+
+
 				# right : 1, wrong : 0, padding : -1
 				valid_target = (valid_qa - 1) // self.args.n_questions
+				#print('valid_target', valid_target)
 				valid_feed_dict = {self.q_data : valid_q, self.qa_data : valid_qa, self.target : valid_target}
 				valid_loss, valid_pred = self.sess.run([self.loss, self.pred], feed_dict=valid_feed_dict)
 				# Same with training set
 				valid_right_target = np.asarray(valid_target).reshape(-1,)
 				valid_right_pred = np.asarray(valid_pred).reshape(-1,)
+				#print('valid_right_target', valid_right_target)
+				#print('valid_right_pred', valid_right_pred)
 				valid_right_index = np.flatnonzero(valid_right_target != -1).tolist()	
 				valid_target_list.append(valid_right_target[valid_right_index])
 				valid_pred_list.append(valid_right_pred[valid_right_index])
@@ -263,6 +269,8 @@ class Model():
 			target = target.astype(np.int)
 			target_batch = (target - 1) // self.args.n_questions  
 			target_batch = target_batch.astype(np.float)
+			print('test_qa_batch', test_qa_batch)
+			print('target_batch', target_batch)
 			feed_dict = {self.q_data:test_q_batch, self.qa_data:test_qa_batch, self.target:target_batch}
 			loss_, pred_ = self.sess.run([self.loss, self.pred], feed_dict=feed_dict)
 			# Get right answer index
@@ -274,6 +282,8 @@ class Model():
 			# Number of 'training_step' elements list with [batch size * seq_len, ]
 			pred_list.append(right_pred[right_index])
 			target_list.append(right_target[right_index])
+			print('pred_list', pred_list)
+			print('targeted list', target_list)
 
 		all_pred = np.concatenate(pred_list, axis=0)
 		all_target = np.concatenate(target_list, axis=0)

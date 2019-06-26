@@ -3,6 +3,11 @@ import numpy as np
 from model import Model
 import os, time, argparse
 from data_loader import *
+import sys
+import pandas as pd
+
+sys.path.append('../Recurrent_embedding')
+from helper import *
 
 
 def main():
@@ -19,7 +24,7 @@ def main():
 	parser.add_argument('--momentum', type=float, default=0.9)
 	parser.add_argument('--initial_lr', type=float, default=0.05)
 	# synthetic / assist2009_updated / assist2015 / STATIC
-	dataset = 'STATICS'
+	dataset = 'assist2009_updated'
 
 	if dataset == 'assist2009_updated':
 		parser.add_argument('--batch_size', type=int, default=32)
@@ -76,15 +81,17 @@ def main():
 	data = DATA_LOADER(args.n_questions, args.seq_len, ',')
 	data_directory = os.path.join(args.data_dir, args.dataset)
 
+	train_user_data, test_user_data = prepare_data(file_path='../StudentLearningProcess/Assistment09-problem-single_skill.csv')
+
 	with tf.Session(config=run_config) as sess:
 		dkvmn = Model(args, sess, name='DKVMN')
 		if args.train:
 			train_data_path = os.path.join(data_directory, args.dataset + '_train1.csv')
 			valid_data_path = os.path.join(data_directory, args.dataset + '_valid1.csv')
 
-			train_q_data, train_qa_data = data.load_data(train_data_path)
+			train_q_data, train_qa_data = data.load_data(train_user_data)
 			print('Train data loaded')
-			valid_q_data, valid_qa_data = data.load_data(valid_data_path)
+			valid_q_data, valid_qa_data = data.load_data(test_user_data)
 			print('Valid data loaded')
 			print('Shape of train data : %s, valid data : %s' % (train_q_data.shape, valid_q_data.shape))
 			print('Start training')
@@ -92,7 +99,7 @@ def main():
 			#print('Best epoch %d' % (best_epoch))
 		else:
 			test_data_path = os.path.join(data_directory, args.dataset + '_test.csv')
-			test_q_data, test_qa_data = data.load_data(test_data_path)
+			test_q_data, test_qa_data = data.load_data(test_user_data)
 			print('Test data loaded')
 			dkvmn.test(test_q_data, test_qa_data)
 
