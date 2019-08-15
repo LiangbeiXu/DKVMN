@@ -32,7 +32,7 @@ def main():
 		parser.add_argument('--memory_key_state_dim', type=int, default=50)
 		parser.add_argument('--memory_value_state_dim', type=int, default=200)
 		parser.add_argument('--final_fc_dim', type=int, default=50)
-		parser.add_argument('--n_questions', type=int, default=110)
+		parser.add_argument('--n_questions', type=int, default=13112)
 		parser.add_argument('--seq_len', type=int, default=200)
 
 	elif dataset == 'synthetic':
