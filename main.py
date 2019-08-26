@@ -33,18 +33,18 @@ def main():
 		parser.add_argument('--batch_size', type=int, default=32)
 		parser.add_argument('--memory_size', type=int, default=20)
 		parser.add_argument('--memory_key_state_dim', type=int, default=50)
-		parser.add_argument('--memory_value_state_dim', type=int, default=50)
+		parser.add_argument('--memory_value_state_dim', type=int, default=200)
 		parser.add_argument('--final_fc_dim', type=int, default=50)
-		parser.add_argument('--n_questions', type=int, default=13112)
+		#parser.add_argument('--n_questions', type=int, default=13112)
 		parser.add_argument('--seq_len', type=int, default=200)
 
 	if dataset == 'assist2009_updated' and model == 'DKVMN_bi':
 		parser.add_argument('--batch_size', type=int, default=32)
 		parser.add_argument('--memory_size', type=int, default=1)
 		parser.add_argument('--memory_key_state_dim', type=int, default=50)
-		parser.add_argument('--memory_value_state_dim', type=int, default=200)
+		parser.add_argument('--memory_value_state_dim', type=int, default=50)
 		parser.add_argument('--final_fc_dim', type=int, default=50)
-		parser.add_argument('--n_questions', type=int, default=13112)
+		#parser.add_argument('--n_questions', type=int, default=13112)
 		parser.add_argument('--seq_len', type=int, default=200)
 
 	elif dataset == 'synthetic':
@@ -89,11 +89,12 @@ def main():
 	run_config = tf.ConfigProto()
 	run_config.gpu_options.allow_growth = True
 
+	train_user_data, test_user_data, stats = prepare_data(file_path='../StudentLearningProcess/Assistment09-problem-single_skill.csv', item_id='problem_id')
+	print(stats)
+	args.n_questions = stats['num_items']
 
 	data = DATA_LOADER(args.n_questions, args.seq_len, ',')
 	data_directory = os.path.join(args.data_dir, args.dataset)
-
-	train_user_data, test_user_data = prepare_data(file_path='../StudentLearningProcess/Assistment09-problem-single_skill.csv')
 
 	with tf.Session(config=run_config) as sess:
 		if args.model=='DKVMN':
