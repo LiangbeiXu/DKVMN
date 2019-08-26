@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from model import Model
+from model_inter import Model_bi
 import os, time, argparse
 from data_loader import *
 import sys
@@ -25,10 +26,21 @@ def main():
 	parser.add_argument('--initial_lr', type=float, default=0.05)
 	# synthetic / assist2009_updated / assist2015 / STATIC
 	dataset = 'assist2009_updated'
+	model = 'DKVMN'
+	parser.add_argument('--model', type=str, default=model)
 
-	if dataset == 'assist2009_updated':
+	if dataset == 'assist2009_updated' and model == 'DKVMN_bi':
 		parser.add_argument('--batch_size', type=int, default=32)
 		parser.add_argument('--memory_size', type=int, default=20)
+		parser.add_argument('--memory_key_state_dim', type=int, default=50)
+		parser.add_argument('--memory_value_state_dim', type=int, default=50)
+		parser.add_argument('--final_fc_dim', type=int, default=50)
+		parser.add_argument('--n_questions', type=int, default=13112)
+		parser.add_argument('--seq_len', type=int, default=200)
+
+	if dataset == 'assist2009_updated' and model == 'DKVMN':
+		parser.add_argument('--batch_size', type=int, default=32)
+		parser.add_argument('--memory_size', type=int, default=1)
 		parser.add_argument('--memory_key_state_dim', type=int, default=50)
 		parser.add_argument('--memory_value_state_dim', type=int, default=200)
 		parser.add_argument('--final_fc_dim', type=int, default=50)
@@ -84,7 +96,10 @@ def main():
 	train_user_data, test_user_data = prepare_data(file_path='../StudentLearningProcess/Assistment09-problem-single_skill.csv')
 
 	with tf.Session(config=run_config) as sess:
-		dkvmn = Model(args, sess, name='DKVMN')
+		if args.model=='DKVMN':
+			dkvmn = Model(args, sess, name='DKVMN')
+		elif args.model=='DKVMN_bi':
+			dkvmn = Model_bi(args, sess, name='DKVMN_bi')
 		if args.train:
 			train_data_path = os.path.join(data_directory, args.dataset + '_train1.csv')
 			valid_data_path = os.path.join(data_directory, args.dataset + '_valid1.csv')
