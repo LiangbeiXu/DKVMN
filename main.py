@@ -26,10 +26,10 @@ def main():
 	parser.add_argument('--initial_lr', type=float, default=0.05)
 	# synthetic / assist2009_updated / assist2015 / STATIC
 	dataset = 'assist2009_updated'
-	model = 'DKVMN'
+	model = 'DKVMN_bi'
 	parser.add_argument('--model', type=str, default=model)
 
-	if dataset == 'assist2009_updated' and model == 'DKVMN_bi':
+	if dataset == 'assist2009_updated' and model == 'DKVMN':
 		parser.add_argument('--batch_size', type=int, default=32)
 		parser.add_argument('--memory_size', type=int, default=20)
 		parser.add_argument('--memory_key_state_dim', type=int, default=50)
@@ -38,7 +38,7 @@ def main():
 		parser.add_argument('--n_questions', type=int, default=13112)
 		parser.add_argument('--seq_len', type=int, default=200)
 
-	if dataset == 'assist2009_updated' and model == 'DKVMN':
+	if dataset == 'assist2009_updated' and model == 'DKVMN_bi':
 		parser.add_argument('--batch_size', type=int, default=32)
 		parser.add_argument('--memory_size', type=int, default=1)
 		parser.add_argument('--memory_key_state_dim', type=int, default=50)
