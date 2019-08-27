@@ -303,7 +303,7 @@ class Model():
 
 	@property
 	def model_dir(self):
-		return '{}_{}_{}batch_{}epochs'.format(self.args.model, self.args.dataset, self.args.batch_size, self.args.num_epochs)
+		return '{}_{}_{}_{}batch_{}epochs'.format(self.args.model, self.args.dataset, self.args.item_id, self.args.batch_size, self.args.num_epochs)
 
 	def load(self):
 		checkpoint_dir = os.path.join(self.args.checkpoint_dir, self.model_dir)

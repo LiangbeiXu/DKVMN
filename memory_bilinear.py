@@ -34,7 +34,7 @@ class DKVMN_Memory_bi():
         inner_prod = embedding_result + item_bias
         logits = tf.math.sigmoid(inner_prod)
         correlation_weight = tf.math.subtract(logits, tf.expand_dims(correctness, -1))
-        print('Correlation weight shape : %s' % (correlation_weight.get_shape()))
+        #print('Correlation weight shape : %s' % (correlation_weight.get_shape()))
         return correlation_weight
 
     # Getting read content
@@ -49,7 +49,7 @@ class DKVMN_Memory_bi():
         embedded_expand = tf.expand_dims(embedded, 1)
         inner_prod = tf.math.reduce_sum(tf.math.multiply(embedded_expand, value_matrix), axis=2, keep_dims=False)
         read_content = tf.math.add(inner_prod, item_bias)
-        print('Read content shape : %s' % (read_content.get_shape()))
+       # print('Read content shape : %s' % (read_content.get_shape()))
         return read_content
 
     def write(self, value_matrix, correlation_weight, q_embedded, reuse=False):
@@ -63,7 +63,7 @@ class DKVMN_Memory_bi():
         q_embedded_expand = tf.expand_dims(q_embedded, 1)
         new_memory = tf.math.subtract(value_matrix, tf.math.multiply(update_tiled, q_embedded_expand))
         # [batch size, memory size, memory value staet dim]
-        print('Memory shape : %s' % (new_memory.get_shape()))
+        # print('Memory shape : %s' % (new_memory.get_shape()))
         return new_memory
 
 

@@ -109,7 +109,10 @@ class Model_bi():
 		# tf.gather(params, indices) : Gather slices from params according to indices
 		filtered_target = tf.gather(target_1d, index)
 		filtered_logits = tf.gather(pred_logits_1d, index)
-		self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=filtered_logits, labels=filtered_target))
+
+		regularization_loss = tf.nn.l2_loss(q_embed_mtx)
+
+		self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=filtered_logits, labels=filtered_target)) + self.args.l2_reg * regularization_loss
 		self.pred = tf.sigmoid(self.pred_logits)
 
 		# Optimizer : SGD + MOMENTUM with learning rate decay
@@ -313,7 +316,7 @@ class Model_bi():
 
 	@property
 	def model_dir(self):
-		return '{}_{}_{}batch_{}epochs'.format(self.args.model, self.args.dataset, self.args.batch_size, self.args.num_epochs)
+		return '{}_{}_{}_{}batch_{}epochs'.format(self.args.model, self.args.dataset, self.args.item_id, self.args.batch_size, self.args.num_epochs)
 
 	def load(self):
 		checkpoint_dir = os.path.join(self.args.checkpoint_dir, self.model_dir)

@@ -36,7 +36,7 @@ class DATA_LOADER():
 					n_split += 1
 			else:
 				n_split = 1
-			print('Number of split : %d' % n_split)
+			# print('Number of split : %d' % n_split)
 
 			# Contain as many as seq_len, then contain remainder
 			for k in range(n_split):
@@ -52,7 +52,7 @@ class DATA_LOADER():
 					qa_values = int(q_tag_list[i]) + int(answer_list[i]) * self.n_questions
 					q_container.append(int(q_tag_list[i]))
 					qa_container.append(qa_values)
-					print('Question tag : %s, Answer : %s, QA : %s' %(q_tag_list[i], answer_list[i], qa_values))
+					# print('Question tag : %s, Answer : %s, QA : %s' %(q_tag_list[i], answer_list[i], qa_values))
 				# List of list(seq_len, seq_len, seq_len, less than seq_len, seq_len, seq_len...
 				q_data.append(q_container)
 				qa_data.append(qa_container)

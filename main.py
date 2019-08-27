@@ -15,7 +15,7 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--num_epochs', type=int, default=300)
 	parser.add_argument('--train', type=str2bool, default='t')
-	parser.add_argument('--init_from', type=str2bool, default='t')
+	parser.add_argument('--init_from', type=str2bool, default='f')
 	parser.add_argument('--show', type=str2bool, default='f')
 	parser.add_argument('--checkpoint_dir', type=str, default='checkpoint')
 	parser.add_argument('--log_dir', type=str, default='logs')
@@ -24,10 +24,18 @@ def main():
 	parser.add_argument('--maxgradnorm', type=float, default=50.0)
 	parser.add_argument('--momentum', type=float, default=0.9)
 	parser.add_argument('--initial_lr', type=float, default=0.05)
+	parser.add_argument('--l2_reg', type=float, default=0.003)
 	# synthetic / assist2009_updated / assist2015 / STATIC
-	dataset = 'assist2009_updated'
+	dataset = 'kdd2005'
 	model = 'DKVMN_bi'
+	item_id = 'problem_id'
 	parser.add_argument('--model', type=str, default=model)
+	parser.add_argument('--item_id', type=str, default=item_id)
+
+	if dataset == 'assist2009_updated':
+		file_path = '../StudentLearningProcess/Assistment09-problem-single_skill.csv'
+	elif dataset == 'kdd2005':
+		file_path = '../StudentLearningProcess/kdd_data_2005.csv'
 
 	if dataset == 'assist2009_updated' and model == 'DKVMN':
 		parser.add_argument('--batch_size', type=int, default=32)
@@ -35,16 +43,30 @@ def main():
 		parser.add_argument('--memory_key_state_dim', type=int, default=50)
 		parser.add_argument('--memory_value_state_dim', type=int, default=200)
 		parser.add_argument('--final_fc_dim', type=int, default=50)
-		#parser.add_argument('--n_questions', type=int, default=13112)
 		parser.add_argument('--seq_len', type=int, default=200)
 
-	if dataset == 'assist2009_updated' and model == 'DKVMN_bi':
+	elif dataset == 'assist2009_updated' and model == 'DKVMN_bi':
 		parser.add_argument('--batch_size', type=int, default=32)
 		parser.add_argument('--memory_size', type=int, default=1)
 		parser.add_argument('--memory_key_state_dim', type=int, default=50)
 		parser.add_argument('--memory_value_state_dim', type=int, default=50)
 		parser.add_argument('--final_fc_dim', type=int, default=50)
-		#parser.add_argument('--n_questions', type=int, default=13112)
+		parser.add_argument('--seq_len', type=int, default=200)
+
+	elif dataset == 'kdd2005' and model == 'DKVMN':
+		parser.add_argument('--batch_size', type=int, default=32)
+		parser.add_argument('--memory_size', type=int, default=20)
+		parser.add_argument('--memory_key_state_dim', type=int, default=50)
+		parser.add_argument('--memory_value_state_dim', type=int, default=200)
+		parser.add_argument('--final_fc_dim', type=int, default=50)
+		parser.add_argument('--seq_len', type=int, default=200)
+
+	elif dataset == 'kdd2005' and model == 'DKVMN_bi':
+		parser.add_argument('--batch_size', type=int, default=32)
+		parser.add_argument('--memory_size', type=int, default=1)
+		parser.add_argument('--memory_key_state_dim', type=int, default=50)
+		parser.add_argument('--memory_value_state_dim', type=int, default=50)
+		parser.add_argument('--final_fc_dim', type=int, default=50)
 		parser.add_argument('--seq_len', type=int, default=200)
 
 	elif dataset == 'synthetic':
@@ -88,8 +110,7 @@ def main():
 
 	run_config = tf.ConfigProto()
 	run_config.gpu_options.allow_growth = True
-
-	train_user_data, test_user_data, stats = prepare_data(file_path='../StudentLearningProcess/Assistment09-problem-single_skill.csv', item_id='problem_id')
+	train_user_data, test_user_data, stats = prepare_data(file_path=file_path, item_id=args.item_id)
 	print(stats)
 	args.n_questions = stats['num_items']
 
@@ -102,9 +123,6 @@ def main():
 		elif args.model=='DKVMN_bi':
 			dkvmn = Model_bi(args, sess, name='DKVMN_bi')
 		if args.train:
-			train_data_path = os.path.join(data_directory, args.dataset + '_train1.csv')
-			valid_data_path = os.path.join(data_directory, args.dataset + '_valid1.csv')
-
 			train_q_data, train_qa_data = data.load_data(train_user_data)
 			print('Train data loaded')
 			valid_q_data, valid_qa_data = data.load_data(test_user_data)
@@ -114,7 +132,6 @@ def main():
 			dkvmn.train(train_q_data, train_qa_data, valid_q_data, valid_qa_data)
 			#print('Best epoch %d' % (best_epoch))
 		else:
-			test_data_path = os.path.join(data_directory, args.dataset + '_test.csv')
 			test_q_data, test_qa_data = data.load_data(test_user_data)
 			print('Test data loaded')
 			dkvmn.test(test_q_data, test_qa_data)
