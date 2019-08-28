@@ -6,12 +6,18 @@ import os, time, argparse
 from data_loader import *
 import sys
 import pandas as pd
+from WeightedMatrixFac import *
 
 sys.path.append('../Recurrent_embedding')
 from helper import *
 
 
-def main():
+def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain=True, model='DKVMN_bi'):
+
+	item_id = item + '_id'
+	file_path = dataset_file
+	dataset = 'assist2009_updated'
+
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--num_epochs', type=int, default=300)
 	parser.add_argument('--train', type=str2bool, default='t')
@@ -25,18 +31,10 @@ def main():
 	parser.add_argument('--momentum', type=float, default=0.9)
 	parser.add_argument('--initial_lr', type=float, default=0.05)
 	parser.add_argument('--l2_reg', type=float, default=0.003)
-	# synthetic / assist2009_updated / assist2015 / STATIC
-	dataset = 'kdd2005'
-	model = 'DKVMN_bi'
-	item_id = 'problem_id'
 	parser.add_argument('--model', type=str, default=model)
 	parser.add_argument('--item_id', type=str, default=item_id)
 
-	if dataset == 'assist2009_updated':
-		file_path = '../StudentLearningProcess/Assistment09-problem-single_skill.csv'
-	elif dataset == 'kdd2005':
-		file_path = '../StudentLearningProcess/kdd_data_2005.csv'
-
+	# synthetic / assist2009_updated / assist2015 / STATIC
 	if dataset == 'assist2009_updated' and model == 'DKVMN':
 		parser.add_argument('--batch_size', type=int, default=32)
 		parser.add_argument('--memory_size', type=int, default=20)
@@ -110,7 +108,7 @@ def main():
 
 	run_config = tf.ConfigProto()
 	run_config.gpu_options.allow_growth = True
-	train_user_data, test_user_data, stats = prepare_data(file_path=file_path, item_id=args.item_id)
+	train_data, test_data, train_user_data, test_user_data, stats = prepare_data(file_path=file_path, item_id=args.item_id)
 	print(stats)
 	args.n_questions = stats['num_items']
 
@@ -136,6 +134,37 @@ def main():
 			print('Test data loaded')
 			dkvmn.test(test_q_data, test_qa_data)
 
+
+def pretrain(item, embedding_size, train_data, test_data, stats):
+	num_users = stats['num_users']
+	num_skills = stats['num_items']
+	num_probs = stats['num_items']
+	# First get the embeddings by runing simple matrix factorization
+	if item == 'problem' or item == 'concat':
+		fm = MatrixFac(epsilon=40, _lambda=0.02, momentum=0.8, maxepoch=30, num_batches=300, batch_size=10000,
+				problem=True, MF_prob=True, num_feat=embedding_size, user=True,  global_bias=False, MF_skill=False, skill=False,
+				problem_dyn_embedding=False, patience=3)
+		if 0:
+			fm = MatrixFac(epsilon=10, _lambda=0.1, momentum=0.8, maxepoch=30, num_batches=300, batch_size=1000,
+					problem=True, MF_prob=True, num_feat=embedding_size, user=True,  global_bias=False, MF_skill=False, skill=False,
+					problem_dyn_embedding=False, patience=3)
+	elif item == 'skill':
+		fm = MatrixFac(epsilon=40, _lambda=0.1, momentum=0.8, maxepoch=30, num_batches=300, batch_size=10000,
+				problem=False, MF_prob=False, num_feat=embedding_size, user=True,  global_bias=False, MF_skill=True, skill=True,
+				problem_dyn_embedding=False, patience=3)
+	ewflag = True
+	train_data = add_weights(train_data, 5, ewflag)
+	test_data = add_weights(test_data, 1, ewflag)
+	fm.fit(train_data, test_data, num_users, num_probs, num_skills, prob_skill_map=None)
+	metric = dict()
+	metric['auc'] = fm.auc_test[-1]
+	metric['acc'] = fm.acc_test[-1]
+	metric['pre'] = fm.pre_test[-1]
+	return fm, metric
+
+def main():
+	dataset_file = '../StudentLearningProcess/Assistment09-problem-single_skill.csv'
+	DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain=True, model='DKVMN_bi')
 
 
 def str2bool(v):

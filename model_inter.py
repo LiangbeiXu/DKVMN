@@ -155,7 +155,7 @@ class Model_bi():
 			if os.path.exists(os.path.join(self.args.checkpoint_dir, self.model_dir)):
 				try:
 					shutil.rmtree(os.path.join(self.args.checkpoint_dir, self.model_dir))
-					shutil.rmtree(os.path.join(self.args.log_dir, self.mode_dir+'.csv'))
+					shutil.rmtree(os.path.join(self.args.log_dir, self.model_dir+'.csv'))
 				except(FileNotFoundError, IOError) as e:
 					print('[Delete Error] %s - %s' % (e.filename, e.strerror))
 
