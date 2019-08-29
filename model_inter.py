@@ -8,10 +8,12 @@ from sklearn import metrics
 
 
 class Model_bi():
-	def __init__(self, args, sess, name='KT'):
+	def __init__(self, args, sess, emb=None, bias=None,  name='KT'):
 		self.args = args
 		self.name = name
 		self.sess = sess
+		self.emb = emb
+		self.bias = bias
 
 		self.create_model()
 
@@ -41,13 +43,16 @@ class Model_bi():
 		# Embedding to [batch size, seq_len, memory_state_dim(d_k or d_v)]
 		with tf.variable_scope('Embedding'):
 			# A
-			q_embed_mtx = tf.get_variable('q_embed', [self.args.n_questions+1, self.args.memory_key_state_dim],\
-				initializer=tf.truncated_normal_initializer(stddev=0.1))
-			q_bias_mtx = tf.get_variable('q_bias', [self.args.n_questions+1, 1],\
-				initializer=tf.truncated_normal_initializer(stddev=0.1))
+			q_embed_mtx = tf.get_variable('q_embed', [self.args.n_questions, self.args.memory_key_state_dim],\
+				initializer=tf.truncated_normal_initializer(stddev=0.1), trainable=True)
+			q_bias_mtx = tf.get_variable('q_bias', [self.args.n_questions, 1],\
+				initializer=tf.truncated_normal_initializer(stddev=0.1), trainable=True)
 			# B
-			qa_embed_mtx = tf.get_variable('qa_embed', [2*self.args.n_questions+1, self.args.memory_value_state_dim], initializer=tf.truncated_normal_initializer(stddev=0.1))
-
+			# qa_embed_mtx = tf.get_variable('qa_embed', [2*self.args.n_questions+1,
+		# self.args.memory_value_state_dim], initializer=tf.truncated_normal_initializer(stddev=0.1))
+		if self.emb is not None and self.bias is not None:
+			tf.assign(q_embed_mtx, self.emb)
+			tf.assign(q_bias_mtx, self.bias)
 		# Embedding to [batch size, seq_len, memory key state dim]
 		q_embed_data = tf.nn.embedding_lookup(q_embed_mtx, self.q_data)
 		q_bias_data = tf.nn.embedding_lookup(q_bias_mtx, self.q_data)
@@ -58,10 +63,10 @@ class Model_bi():
 		slice_target_data = tf.split(self.target, self.args.seq_len, 1)
 		#print(len(slice_q_embed_data), type(slice_q_embed_data), slice_q_embed_data[0].get_shape())
 		# Embedding to [batch size, seq_len, memory value state dim]
-		qa_embed_data = tf.nn.embedding_lookup(qa_embed_mtx, self.qa_data)
+		# qa_embed_data = tf.nn.embedding_lookup(qa_embed_mtx, self.qa_data)
 		#print('QA_embedding shape: %s' % qa_embed_data.get_shape())
 		# List of [batch size, 1, memory value state dim] with 'seq_len' elements
-		slice_qa_embed_data = tf.split(qa_embed_data, self.args.seq_len, 1)
+		# slice_qa_embed_data = tf.split(qa_embed_data, self.args.seq_len, 1)
 
 
 
@@ -282,8 +287,8 @@ class Model_bi():
 			target = target.astype(np.int)
 			target_batch = (target - 1) // self.args.n_questions
 			target_batch = target_batch.astype(np.float)
-			print('test_qa_batch', test_qa_batch)
-			print('target_batch', target_batch)
+			# print('test_qa_batch', test_qa_batch)
+			# print('target_batch', target_batch)
 			feed_dict = {self.q_data:test_q_batch, self.qa_data:test_qa_batch, self.target:target_batch}
 			loss_, pred_ = self.sess.run([self.loss, self.pred], feed_dict=feed_dict)
 			# Get right answer index
@@ -295,8 +300,8 @@ class Model_bi():
 			# Number of 'training_step' elements list with [batch size * seq_len, ]
 			pred_list.append(right_pred[right_index])
 			target_list.append(right_target[right_index])
-			print('pred_list', pred_list)
-			print('targeted list', target_list)
+			# print('pred_list', pred_list)
+			# print('targeted list', target_list)
 
 		all_pred = np.concatenate(pred_list, axis=0)
 		all_target = np.concatenate(target_list, axis=0)
@@ -312,6 +317,11 @@ class Model_bi():
 		self.test_accuracy = metrics.accuracy_score(all_target, all_pred)
 
 		print('Test auc : %3.4f, Test accuracy : %3.4f' % (self.test_auc, self.test_accuracy))
+		metric = {}
+		metric['auc'] = self.test_auc
+		metric['acc'] = self.test_accuracy
+		metric['pre'] = None
+		return metric
 
 
 	@property
