@@ -29,7 +29,7 @@ class DKVMN_Memory():
    		# embedding_result : [batch size, memory size], each row contains each concept correlation weight for 1 question
 		embedding_result = tf.matmul(embedded, tf.transpose(key_matrix))
 		correlation_weight = tf.nn.softmax(embedding_result)
-		print('Correlation weight shape : %s' % (correlation_weight.get_shape()))
+		# print('Correlation weight shape : %s' % (correlation_weight.get_shape()))
 		return correlation_weight
 
 
@@ -44,7 +44,7 @@ class DKVMN_Memory():
 		vmtx_reshaped = tf.reshape(value_matrix, [-1, self.memory_state_dim])
 		# [batch size * memory size, 1]
 		cw_reshaped = tf.reshape(correlation_weight, [-1,1])
-		print('Transformed shape : %s, %s' %(vmtx_reshaped.get_shape(), cw_reshaped.get_shape()))
+		# print('Transformed shape : %s, %s' %(vmtx_reshaped.get_shape(), cw_reshaped.get_shape()))
 		# Read content, will be [batch size * memory size, memory state dim] and reshape it to [batch size, memory size, memory state dim]
 		rc = tf.multiply(vmtx_reshaped, cw_reshaped)
 		read_content = tf.reshape(rc, [-1,self.memory_size,self.memory_state_dim])

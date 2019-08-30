@@ -142,12 +142,16 @@ class Model():
 			if os.path.exists(os.path.join(self.args.checkpoint_dir, self.model_dir)):
 				try:
 					shutil.rmtree(os.path.join(self.args.checkpoint_dir, self.model_dir))
-					shutil.rmtree(os.path.join(self.args.log_dir, self.mode_dir+'.csv'))
+					shutil.rmtree(os.path.join(self.args.log_dir, self.model_dir+'.csv'))
 				except(FileNotFoundError, IOError) as e:
 					print('[Delete Error] %s - %s' % (e.filename, e.strerror))
 		
 		best_valid_auc = 0
 
+		patience = self.args.num_epochs
+		min_delta = 0.0001
+		hist_loss = []
+		patience_cnt = 0
 		# Training
 		for epoch in range(0, self.args.num_epochs):
 			if self.args.show:
@@ -249,6 +253,15 @@ class Model():
 				best_epoch = epoch + 1
 				self.save(best_epoch)
 
+			hist_loss.append(valid_loss)
+			if epoch > 0 and hist_loss[epoch-1] - hist_loss[epoch] > min_delta:
+				patience_cnt = 0
+			else:
+				patience_cnt += 1
+			if patience_cnt > patience:
+				print("early stopping...")
+				break
+
 		return best_epoch	
 			
 	def test(self, test_q, test_qa):
@@ -269,8 +282,8 @@ class Model():
 			target = target.astype(np.int)
 			target_batch = (target - 1) // self.args.n_questions  
 			target_batch = target_batch.astype(np.float)
-			print('test_qa_batch', test_qa_batch)
-			print('target_batch', target_batch)
+			# print('test_qa_batch', test_qa_batch)
+			# print('target_batch', target_batch)
 			feed_dict = {self.q_data:test_q_batch, self.qa_data:test_qa_batch, self.target:target_batch}
 			loss_, pred_ = self.sess.run([self.loss, self.pred], feed_dict=feed_dict)
 			# Get right answer index
@@ -282,8 +295,8 @@ class Model():
 			# Number of 'training_step' elements list with [batch size * seq_len, ]
 			pred_list.append(right_pred[right_index])
 			target_list.append(right_target[right_index])
-			print('pred_list', pred_list)
-			print('targeted list', target_list)
+			# print('pred_list', pred_list)
+			# print('targeted list', target_list)
 
 		all_pred = np.concatenate(pred_list, axis=0)
 		all_target = np.concatenate(target_list, axis=0)
@@ -298,7 +311,12 @@ class Model():
 
 		self.test_accuracy = metrics.accuracy_score(all_target, all_pred)
 
-		print('Test auc : %3.4f, Test accuracy : %3.4f' % (self.test_auc, self.test_accuracy))
+		# print('Test auc : %3.4f, Test accuracy : %3.4f' % (self.test_auc, self.test_accuracy))
+		metric = {}
+		metric['auc'] = self.test_auc
+		metric['acc'] = self.test_accuracy
+		metric['pre'] = None
+		return metric
 
 
 	@property

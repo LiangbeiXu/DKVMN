@@ -166,6 +166,10 @@ class Model_bi():
 
 		best_valid_auc = 0
 
+		patience = self.args.num_epochs
+		min_delta = 0.0001
+		hist_loss = []
+		patience_cnt = 0
 		# Training
 		for epoch in range(0, self.args.num_epochs):
 			if self.args.show:
@@ -174,7 +178,9 @@ class Model_bi():
 			pred_list = list()
 			target_list = list()
 			epoch_loss = 0
-			learning_rate = tf.train.exponential_decay(self.args.initial_lr, global_step=self.global_step, decay_steps=self.args.anneal_interval*training_step, decay_rate=0.667, staircase=True)
+			learning_rate = tf.train.exponential_decay(self.args.initial_lr, global_step=self.global_step,
+			                                           decay_steps=self.args.anneal_interval*training_step,
+			                                           decay_rate=0.667, staircase=True)
 
 			#print('Epoch %d starts with learning rate : %3.5f' % (epoch+1, self.sess.run(learning_rate)))
 			for steps in range(training_step):
@@ -267,6 +273,15 @@ class Model_bi():
 				best_epoch = epoch + 1
 				self.save(best_epoch)
 
+			hist_loss.append(valid_loss)
+			if epoch > 0 and hist_loss[epoch-1] - hist_loss[epoch] > min_delta:
+				patience_cnt = 0
+			else:
+				patience_cnt += 1
+			if patience_cnt > patience:
+				print("early stopping...")
+				break
+
 		return best_epoch
 
 	def test(self, test_q, test_qa):
@@ -316,7 +331,7 @@ class Model_bi():
 
 		self.test_accuracy = metrics.accuracy_score(all_target, all_pred)
 
-		print('Test auc : %3.4f, Test accuracy : %3.4f' % (self.test_auc, self.test_accuracy))
+		# print('Test auc : %3.4f, Test accuracy : %3.4f' % (self.test_auc, self.test_accuracy))
 		metric = {}
 		metric['auc'] = self.test_auc
 		metric['acc'] = self.test_accuracy
