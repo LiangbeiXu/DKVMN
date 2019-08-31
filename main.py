@@ -203,7 +203,7 @@ def pretrain(item, embedding_size, train_data, test_data, stats):
 def main():
     dataset_file = '../StudentLearningProcess/Assistment09-problem-single_skill.csv'
     # dataset_file = '../StudentLearningProcess/kdd_data_2005.csv'
-    DKVMN_exp(dataset_file, mode='new user', item='problem', pretrain_flag=False, model='DKVMN-bi')
+    DKVMN_exp(dataset_file, mode='new user', item='problem', pretrain_flag=False, model='DKVMN_bi')
 
 
 
