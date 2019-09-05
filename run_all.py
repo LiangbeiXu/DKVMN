@@ -35,6 +35,26 @@ all_sets = ['Assistment09-problem-single_skill.csv', 'Assistment12-problem-singl
 batch_sizes = dict(zip(all_sets, [64, 32, 16, 16, 16, 16, 32, 16, 16]))
 
 if 1:
+	lrs = [0.01, 0.03, 0.1, 0.3, 1.0]
+	l2_regs = [0.0, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2]
+	items = ['skill', 'problem']
+	for item in items:
+		for lr in lrs:
+			for l2_reg in l2_regs:
+				exp_meta = {}
+				exp_meta['data_file'] = all_sets[1]
+				exp_meta['mode'] = 'new user'
+				exp_meta['item'] = item
+				exp_meta['pretrain_flag'] = False
+				exp_meta['model'] = 'DKVMN_bi'
+				exp_meta['initial_lr'] = lr
+				exp_meta['l2_reg'] = l2_reg
+				arguments.append((data_dir + exp_meta['data_file'], exp_meta['mode'], exp_meta['item'],
+				                  exp_meta['pretrain_flag'], exp_meta['model'], exp_meta['l2_reg'], exp_meta['initial_lr']))
+				funcs.append(DKVMN_exp)
+				all_exp_metas.append(exp_meta)
+
+if 0:
 	file_names = [all_sets[i] for i in [0, 3]]
 	modes = ['new user']
 	items = ['skill', 'problem']

@@ -13,7 +13,8 @@ from WeightedMatrixFac import *
 from helper import *
 
 
-def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, model='DKVMN_bi'):
+def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, model='DKVMN_bi', l2_reg=1e-3,
+              initial_lr=0.05, momentum=0.9):
     print('=' * len(str(locals())))
     print (locals())
     print('=' * len(str(locals())))
@@ -24,7 +25,7 @@ def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, m
     tf.reset_default_graph()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_epochs', type=int, default=200)
+    parser.add_argument('--num_epochs', type=int, default=300)
     parser.add_argument('--train', type=str2bool, default='t')
     parser.add_argument('--init_from', type=str2bool, default='f')
     parser.add_argument('--show', type=str2bool, default='f')
@@ -34,8 +35,8 @@ def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, m
     parser.add_argument('--anneal_interval', type=int, default=20)
     parser.add_argument('--maxgradnorm', type=float, default=50.0)
     parser.add_argument('--momentum', type=float, default=0.9)
-    parser.add_argument('--initial_lr', type=float, default=0.05)
-    parser.add_argument('--l2_reg', type=float, default=0.005)
+    parser.add_argument('--initial_lr', type=float, default=initial_lr)
+    parser.add_argument('--l2_reg', type=float, default=l2_reg)
     parser.add_argument('--model', type=str, default=model)
     parser.add_argument('--item_id', type=str, default=item_id)
 
@@ -49,7 +50,7 @@ def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, m
         parser.add_argument('--seq_len', type=int, default=200)
 
     elif dataset == 'assist2009_updated' and model == 'DKVMN_bi':
-        parser.add_argument('--batch_size', type=int, default=16)
+        parser.add_argument('--batch_size', type=int, default=32)
         parser.add_argument('--memory_size', type=int, default=1)
         parser.add_argument('--memory_key_state_dim', type=int, default=20)
         parser.add_argument('--memory_value_state_dim', type=int, default=20)
@@ -65,7 +66,7 @@ def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, m
         parser.add_argument('--seq_len', type=int, default=200)
 
     elif dataset == 'kdd2005' and model == 'DKVMN_bi':
-        parser.add_argument('--batch_size', type=int, default=16)
+        parser.add_argument('--batch_size', type=int, default=32)
         parser.add_argument('--memory_size', type=int, default=1)
         parser.add_argument('--memory_key_state_dim', type=int, default=20)
         parser.add_argument('--memory_value_state_dim', type=int, default=20)
@@ -201,8 +202,8 @@ def pretrain(item, embedding_size, train_data, test_data, stats):
 
 
 def main():
-    dataset_file = '../StudentLearningProcess/Assistment09-problem-single_skill.csv'
-    # dataset_file = '../StudentLearningProcess/kdd_data_2005.csv'
+    # dataset_file = '../StudentLearningProcess/Assistment09-problem-single_skill.csv'
+    dataset_file = '../StudentLearningProcess/kdd_data_2005.csv'
     DKVMN_exp(dataset_file, mode='new user', item='problem', pretrain_flag=False, model='DKVMN_bi')
 
 

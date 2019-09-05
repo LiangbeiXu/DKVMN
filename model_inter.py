@@ -14,7 +14,7 @@ class Model_bi():
 		self.sess = sess
 		self.emb = emb
 		self.bias = bias
-
+		self.decay_rate = 0.8
 		self.create_model()
 
 	def create_model(self):
@@ -27,9 +27,9 @@ class Model_bi():
 		# Initialize Memory
 		with tf.variable_scope('Memory'):
 			init_memory_key = tf.get_variable('key', [self.args.memory_size, self.args.memory_key_state_dim], \
-				initializer=tf.truncated_normal_initializer(stddev=0.1))
+				initializer=tf.truncated_normal_initializer(stddev=0.001))
 			init_memory_value = tf.get_variable('value', [self.args.memory_size,self.args.memory_value_state_dim], \
-				initializer=tf.truncated_normal_initializer(stddev=0.1))
+				initializer=tf.truncated_normal_initializer(stddev=0.001))
 		# Broadcast memory value tensor to match [batch size, memory size, memory state dim]
 		# First expand dim at axis 0 so that makes 'batch size' axis and tile it along 'batch size' axis
 		# tf.tile(inputs, multiples) : multiples length must be thes saame as the number of dimensions in input
@@ -123,8 +123,10 @@ class Model_bi():
 		# Optimizer : SGD + MOMENTUM with learning rate decay
 		self.global_step = tf.Variable(0, trainable=False)
 		self.lr = tf.placeholder(tf.float32, [], name='learning_rate')
-#		self.lr_decay = tf.train.exponential_decay(self.args.initial_lr, global_step=global_step, decay_steps=10000, decay_rate=0.667, staircase=True)
-#		self.learning_rate = tf.maximum(lr, self.args.lr_lowerbound)
+
+		# self.lr_decay = tf.train.exponential_decay(self.args.initial_lr, global_step=global_step, decay_steps=10000,
+		# decay_rate=0.667, staircase=True)
+		# self.learning_rate = tf.maximum(lr, self.args.lr_lowerbound)
 		optimizer = tf.train.MomentumOptimizer(self.lr, self.args.momentum)
 		grads, vrbs = zip(*optimizer.compute_gradients(self.loss))
 		grad, _ = tf.clip_by_global_norm(grads, self.args.maxgradnorm)
@@ -166,7 +168,7 @@ class Model_bi():
 
 		best_valid_auc = 0
 
-		patience = self.args.num_epochs
+		patience = 10
 		min_delta = 0.0001
 		hist_loss = []
 		patience_cnt = 0
@@ -178,9 +180,10 @@ class Model_bi():
 			pred_list = list()
 			target_list = list()
 			epoch_loss = 0
-			learning_rate = tf.train.exponential_decay(self.args.initial_lr, global_step=self.global_step,
-			                                           decay_steps=self.args.anneal_interval*training_step,
-			                                           decay_rate=0.667, staircase=True)
+			if 0:
+				learning_rate = tf.train.exponential_decay(self.args.initial_lr, global_step=self.global_step,
+				                                           decay_steps=self.args.anneal_interval*training_step,
+				                                           decay_rate=self.decay_rate, staircase=True)
 
 			#print('Epoch %d starts with learning rate : %3.5f' % (epoch+1, self.sess.run(learning_rate)))
 			for steps in range(training_step):
@@ -337,7 +340,6 @@ class Model_bi():
 		metric['acc'] = self.test_accuracy
 		metric['pre'] = None
 		return metric
-
 
 	@property
 	def model_dir(self):
