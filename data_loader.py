@@ -22,13 +22,14 @@ class DATA_LOADER():
 		# Question/Answer container
 		q_data = list()
 		qa_data = list()
+		flag_data = list()
 		# Read data
 
 		for lineid, data_per_user in enumerate(user_data):
 			data_per_user_np = np.array(data_per_user, dtype=np.int)
 			q_tag_list = list(data_per_user_np[:, 1])
 			answer_list = list(data_per_user_np[:, 2])
-
+			flag_list = list(data_per_user_np[:, 3])
 			# Divide case by seq_len
 			if len(q_tag_list) > self.seq_len:
 				n_split = len(q_tag_list) // self.seq_len
@@ -42,6 +43,7 @@ class DATA_LOADER():
 			for k in range(n_split):
 				q_container = list()
 				qa_container = list()
+				flag_container = list()
 				# Less than 'seq_len' element remained
 				if k == n_split - 1:
 					end_index = len(answer_list)
@@ -51,11 +53,13 @@ class DATA_LOADER():
 					# answers in {0,1}
 					qa_values = int(q_tag_list[i]) + int(answer_list[i]) * self.n_questions
 					q_container.append(int(q_tag_list[i]))
+					flag_container.append(int(flag_list[i]))
 					qa_container.append(qa_values)
 					# print('Question tag : %s, Answer : %s, QA : %s' %(q_tag_list[i], answer_list[i], qa_values))
 				# List of list(seq_len, seq_len, seq_len, less than seq_len, seq_len, seq_len...
 				q_data.append(q_container)
 				qa_data.append(qa_container)
+				flag_data.append(flag_container)
 
 
 		# Convert it to numpy array
@@ -65,11 +69,17 @@ class DATA_LOADER():
 			# if q_data[i] less than seq_len, remainder would be 0 
 			q_data_array[i, :len(data)] = data
 
+		flag_data_array = - np.ones((len(flag_data), self.seq_len))
+		for i in range(len(flag_data)):
+			data = flag_data[i]
+			# if q_data[i] less than seq_len, remainder would be 0
+			flag_data_array[i, :len(data)] = data
+
 		qa_data_array = np.zeros((len(qa_data), self.seq_len))
 		for i in range(len(qa_data)):
 			data = qa_data[i]
 			# if qa_data[i] less than seq_len, remainder would be 0
 			qa_data_array[i,:len(data)] = data
 
-		return q_data_array, qa_data_array
+		return q_data_array, qa_data_array, flag_data_array
 

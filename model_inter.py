@@ -135,11 +135,9 @@ class Model_bi():
 		self.tr_vrbs = tf.trainable_variables()
 		for i in self.tr_vrbs:
 			print(i.name)
-
 		self.saver = tf.train.Saver()
 
-
-	def train(self, train_q_data, train_qa_data, valid_q_data, valid_qa_data):
+	def train(self, train_q_data, train_qa_data, valid_q_data, valid_qa_data, valid_flag_data):
 		# q_data, qa_data : [samples, seq_len]
 		shuffle_index = np.random.permutation(train_q_data.shape[0])
 		q_data_shuffled = train_q_data[shuffle_index]
@@ -234,39 +232,10 @@ class Model_bi():
 			epoch_loss = epoch_loss / training_step
 			print('Epoch %d/%d, loss : %3.5f, auc : %3.5f, accuracy : %3.5f' % (epoch+1, self.args.num_epochs, epoch_loss, self.auc, self.accuracy))
 			self.write_log(epoch=epoch+1, auc=self.auc, accuracy=self.accuracy, loss=epoch_loss, name='training_')
-
-			valid_steps = valid_q_data.shape[0] // self.args.batch_size
-			valid_pred_list = list()
-			valid_target_list = list()
-			for s in range(valid_steps):
-				# Validation
-				valid_q = valid_q_data[s*self.args.batch_size:(s+1)*self.args.batch_size, :]
-				valid_qa = valid_qa_data[s*self.args.batch_size:(s+1)*self.args.batch_size, :]
-				#print('valid_qa', valid_qa)
-
-
-				# right : 1, wrong : 0, padding : -1
-				valid_target = (valid_qa - 1) // self.args.n_questions
-				#print('valid_target', valid_target)
-				valid_feed_dict = {self.q_data : valid_q, self.qa_data : valid_qa, self.target : valid_target}
-				valid_loss, valid_pred = self.sess.run([self.loss, self.pred], feed_dict=valid_feed_dict)
-				# Same with training set
-				valid_right_target = np.asarray(valid_target).reshape(-1,)
-				valid_right_pred = np.asarray(valid_pred).reshape(-1,)
-				#print('valid_right_target', valid_right_target)
-				#print('valid_right_pred', valid_right_pred)
-				valid_right_index = np.flatnonzero(valid_right_target != -1).tolist()
-				valid_target_list.append(valid_right_target[valid_right_index])
-				valid_pred_list.append(valid_right_pred[valid_right_index])
-
-			all_valid_pred = np.concatenate(valid_pred_list, axis=0)
-			all_valid_target = np.concatenate(valid_target_list, axis=0)
-
-			valid_auc = metrics.roc_auc_score(all_valid_target, all_valid_pred)
-		 	# For validation accuracy
-			all_valid_pred[all_valid_pred > 0.5] = 1
-			all_valid_pred[all_valid_pred <= 0.5] = 0
-			valid_accuracy = metrics.accuracy_score(all_valid_target, all_valid_pred)
+			metric = self.calculate_metric(valid_q_data, valid_qa_data, valid_flag_data)
+			valid_accuracy = metric['acc']
+			valid_auc = metric['auc']
+			valid_loss = metric['loss']
 			print('Epoch %d/%d, valid auc : %3.5f, valid accuracy : %3.5f' %(epoch+1, self.args.num_epochs, valid_auc, valid_accuracy))
 			# Valid log
 			self.write_log(epoch=epoch+1, auc=valid_auc, accuracy=valid_accuracy, loss=valid_loss, name='valid_')
@@ -287,20 +256,16 @@ class Model_bi():
 
 		return best_epoch
 
-	def test(self, test_q, test_qa):
-		steps = test_q.shape[0] // self.args.batch_size
-		self.sess.run(tf.global_variables_initializer())
-		if self.load():
-			print('CKPT Loaded')
-		else:
-			raise Exception('CKPT need')
 
+	def calculate_metric(self, test_q, test_qa, test_flag):
+		steps = test_q.shape[0] // self.args.batch_size
 		pred_list = list()
 		target_list = list()
-
+		loss_list = list()
 		for s in range(steps):
 			test_q_batch = test_q[s*self.args.batch_size:(s+1)*self.args.batch_size, :]
 			test_qa_batch = test_qa[s*self.args.batch_size:(s+1)*self.args.batch_size, :]
+			test_flag_batch = test_flag[s*self.args.batch_size:(s+1)*self.args.batch_size, :]
 			target = test_qa_batch[:,:]
 			target = target.astype(np.int)
 			target_batch = (target - 1) // self.args.n_questions
@@ -309,12 +274,16 @@ class Model_bi():
 			# print('target_batch', target_batch)
 			feed_dict = {self.q_data:test_q_batch, self.qa_data:test_qa_batch, self.target:target_batch}
 			loss_, pred_ = self.sess.run([self.loss, self.pred], feed_dict=feed_dict)
+			loss_list.append(loss_)
 			# Get right answer index
 			# Make [batch size * seq_len, 1]
-			right_target = np.asarray(target_batch).reshape(-1,1)
+
+			right_target = np.asarray(target_batch).reshape(-1, 1)
+			test_flag_flat = np.asarray(test_flag_batch).reshape(-1, 1)
 			right_pred = np.asarray(pred_).reshape(-1,1)
 			# np.flatnonzero returns indices which is nonzero, convert it list
-			right_index = np.flatnonzero(right_target != -1.).tolist()
+			# right_index = np.flatnonzero((right_target != -1.) & (test_flag_flat == 1.0)).tolist()
+			right_index = np.flatnonzero((test_flag_flat == 1.0)).tolist()
 			# Number of 'training_step' elements list with [batch size * seq_len, ]
 			pred_list.append(right_pred[right_index])
 			target_list.append(right_target[right_index])
@@ -323,6 +292,7 @@ class Model_bi():
 
 		all_pred = np.concatenate(pred_list, axis=0)
 		all_target = np.concatenate(target_list, axis=0)
+		self.test_loss = np.mean(loss_list)
 
 		# Compute metrics
 		self.test_auc = metrics.roc_auc_score(all_target, all_pred)
@@ -338,8 +308,18 @@ class Model_bi():
 		metric = {}
 		metric['auc'] = self.test_auc
 		metric['acc'] = self.test_accuracy
-		metric['pre'] = None
+		metric['loss'] = self.test_loss
 		return metric
+
+
+	def test(self, test_q, test_qa, test_flag):
+		self.sess.run(tf.global_variables_initializer())
+		if self.load():
+			print('CKPT Loaded')
+		else:
+			raise Exception('CKPT need')
+		return self.calculate_metric(test_q, test_qa, test_flag)
+
 
 	@property
 	def model_dir(self):

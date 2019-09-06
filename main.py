@@ -153,18 +153,18 @@ def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, m
             dkvmn = Model_bi(args, sess, emb_value, bias_value, name='DKVMN_bi')
 
         if args.train:
-            train_q_data, train_qa_data = data.load_data(train_user_data)
+            train_q_data, train_qa_data, train_flag_data = data.load_data(train_user_data)
             print('Train data loaded')
-            valid_q_data, valid_qa_data = data.load_data(test_user_data)
+            valid_q_data, valid_qa_data, valid_flag_data = data.load_data(test_user_data)
             print('Valid data loaded')
             print('Shape of train data : %s, valid data : %s' % (train_q_data.shape, valid_q_data.shape))
             print('Start training')
-            dkvmn.train(train_q_data, train_qa_data, valid_q_data, valid_qa_data)
+            dkvmn.train(train_q_data, train_qa_data, valid_q_data, valid_qa_data, valid_flag_data)
         # print('Best epoch %d' % (best_epoch))
         # else:
-            test_q_data, test_qa_data = data.load_data(test_user_data)
+            test_q_data, test_qa_data, test_flag_data = data.load_data(test_user_data)
             print('Test data loaded')
-            metric = dkvmn.test(test_q_data, test_qa_data)
+            metric = dkvmn.test(test_q_data, test_qa_data, test_flag_data)
             print('Test auc : %3.4f, Test accuracy : %3.4f' % (metric['auc'], metric['acc']))
     tf.reset_default_graph()
     return metric
