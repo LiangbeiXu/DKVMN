@@ -61,6 +61,14 @@ class DKVMN_Memory_bi():
         update = operations.linear2(correlation_weight, name=self.name + '/Update_vector', reuse=reuse)
         update_tiled = tf.tile(tf.expand_dims(update, -1), tf.stack([1, 1, self.memory_state_dim]))
         q_embedded_expand = tf.expand_dims(q_embedded, 1)
+
+        with tf.variable_scope('forgetting') as scope:
+            if reuse:
+                scope.reuse_variables()
+            forgetting_rate = tf.get_variable('forgetting_rate', [1], initializer=tf.truncated_normal_initializer(stddev=0.02))
+            scaled_value_matrix = tf.math.multiply(tf.tile(tf.expand_dims(tf.expand_dims(forgetting_rate, 0), 0),
+                                                           tf.shape(value_matrix)), value_matrix)
+
         new_memory = tf.math.subtract(value_matrix, tf.math.multiply(update_tiled, q_embedded_expand))
         # [batch size, memory size, memory value staet dim]
         # print('Memory shape : %s' % (new_memory.get_shape()))

@@ -57,7 +57,7 @@ if 1:
 					all_exp_metas.append(exp_meta)
 
 
-if 1:
+if 0:
 	lrs = [0.01, 0.03, 0.1, 0.3, 1.0]
 	l2_regs = [0.0, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2]
 	items = ['skill', 'problem']

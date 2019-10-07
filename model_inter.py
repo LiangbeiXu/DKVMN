@@ -4,20 +4,25 @@ import tensorflow as tf
 import operations
 import shutil
 from memory_bilinear import DKVMN_bi
+from memory import DKVMN
 from sklearn import metrics
 
 
 class Model_bi():
-	def __init__(self, args, sess, emb=None, bias=None,  name='KT'):
+	def __init__(self, args, sess, emb=None, bias=None,  name='KT', model='DKVMN_bi'):
 		self.args = args
 		self.name = name
 		self.sess = sess
 		self.emb = emb
 		self.bias = bias
 		self.decay_rate = 0.8
-		self.create_model()
+		self.model = model
+		if self.model == 'DKVMN_bi':
+			self.create_model_DKVMN_bi()
+		elif self.model == 'DKVMN':
+			self.create_model_DKVMN()
 
-	def create_model(self):
+	def create_model_DKVMN_bi(self):
 		# 'seq_len' means question sequences
 		self.q_data = tf.placeholder(tf.int32, [self.args.batch_size, self.args.seq_len], name='q_data')
 		# self.y_data = tf.placeholder(tf.int32, [self.args.batch_size, self.args.seq_len], name='q_data')
@@ -135,6 +140,109 @@ class Model_bi():
 		self.tr_vrbs = tf.trainable_variables()
 		for i in self.tr_vrbs:
 			print(i.name)
+		self.saver = tf.train.Saver()
+
+	def create_model_DKVMN(self):
+		# 'seq_len' means question sequences
+		self.q_data = tf.placeholder(tf.int32, [self.args.batch_size, self.args.seq_len], name='q_data')
+		self.qa_data = tf.placeholder(tf.int32, [self.args.batch_size, self.args.seq_len], name='qa_data')
+		self.target = tf.placeholder(tf.float32, [self.args.batch_size, self.args.seq_len], name='target')
+
+		# Initialize Memory
+		with tf.variable_scope('Memory'):
+			init_memory_key = tf.get_variable('key', [self.args.memory_size, self.args.memory_key_state_dim], \
+				initializer=tf.truncated_normal_initializer(stddev=0.1))
+			init_memory_value = tf.get_variable('value', [self.args.memory_size,self.args.memory_value_state_dim], \
+				initializer=tf.truncated_normal_initializer(stddev=0.1))
+		# Broadcast memory value tensor to match [batch size, memory size, memory state dim]
+		# First expand dim at axis 0 so that makes 'batch size' axis and tile it along 'batch size' axis
+		# tf.tile(inputs, multiples) : multiples length must be thes saame as the number of dimensions in input
+		# tf.stack takes a list and convert each element to a tensor
+		init_memory_value = tf.tile(tf.expand_dims(init_memory_value, 0), tf.stack([self.args.batch_size, 1, 1]))
+		print(init_memory_value.get_shape())
+
+		self.memory = DKVMN(self.args.memory_size, self.args.memory_key_state_dim, \
+				self.args.memory_value_state_dim, init_memory_key=init_memory_key, init_memory_value=init_memory_value, name='DKVMN')
+
+		# Embedding to [batch size, seq_len, memory_state_dim(d_k or d_v)]
+		with tf.variable_scope('Embedding'):
+			# A
+			q_embed_mtx = tf.get_variable('q_embed', [self.args.n_questions+1, self.args.memory_key_state_dim],\
+				initializer=tf.truncated_normal_initializer(stddev=0.1))
+			# B
+			qa_embed_mtx = tf.get_variable('qa_embed', [2*self.args.n_questions+1, self.args.memory_value_state_dim], initializer=tf.truncated_normal_initializer(stddev=0.1))
+
+		# Embedding to [batch size, seq_len, memory key state dim]
+		q_embed_data = tf.nn.embedding_lookup(q_embed_mtx, self.q_data)
+		# List of [batch size, 1, memory key state dim] with 'seq_len' elements
+		#print('Q_embedding shape : %s' % q_embed_data.get_shape())
+		slice_q_embed_data = tf.split(q_embed_data, self.args.seq_len, 1)
+		#print(len(slice_q_embed_data), type(slice_q_embed_data), slice_q_embed_data[0].get_shape())
+		# Embedding to [batch size, seq_len, memory value state dim]
+		qa_embed_data = tf.nn.embedding_lookup(qa_embed_mtx, self.qa_data)
+		#print('QA_embedding shape: %s' % qa_embed_data.get_shape())
+		# List of [batch size, 1, memory value state dim] with 'seq_len' elements
+		slice_qa_embed_data = tf.split(qa_embed_data, self.args.seq_len, 1)
+
+		prediction = list()
+		reuse_flag = False
+
+		# Logics
+		for i in range(self.args.seq_len):
+			# To reuse linear vectors
+			if i != 0:
+				reuse_flag = True
+			# k_t : [batch size, memory key state dim]
+			q = tf.squeeze(slice_q_embed_data[i], 1)
+			# Attention, [batch size, memory size]
+			self.correlation_weight = self.memory.attention(q)
+
+			# Read process, [batch size, memory value state dim]
+			self.read_content = self.memory.read(self.correlation_weight)
+
+			# Write process, [batch size, memory size, memory value state dim]
+			# qa : [batch size, memory value state dim]
+			qa = tf.squeeze(slice_qa_embed_data[i], 1)
+			# Only last time step value is necessary
+			self.new_memory_value = self.memory.write(self.correlation_weight, qa, reuse=reuse_flag)
+
+			mastery_level_prior_difficulty = tf.concat([self.read_content, q], 1)
+			# f_t
+			summary_vector = tf.tanh(operations.linear(mastery_level_prior_difficulty, self.args.final_fc_dim, name='Summary_Vector', reuse=reuse_flag))
+			# p_t
+			pred_logits = operations.linear(summary_vector, 1, name='Prediction', reuse=reuse_flag)
+
+			prediction.append(pred_logits)
+
+		# 'prediction' : seq_len length list of [batch size ,1], make it [batch size, seq_len] tensor
+		# tf.stack convert to [batch size, seq_len, 1]
+		self.pred_logits = tf.reshape(tf.stack(prediction, axis=1), [self.args.batch_size, self.args.seq_len])
+
+		# Define loss : standard cross entropy loss, need to ignore '-1' label example
+		# Make target/label 1-d array
+		target_1d = tf.reshape(self.target, [-1])
+		pred_logits_1d = tf.reshape(self.pred_logits, [-1])
+		index = tf.where(tf.not_equal(target_1d, tf.constant(-1., dtype=tf.float32)))
+		# tf.gather(params, indices) : Gather slices from params according to indices
+		filtered_target = tf.gather(target_1d, index)
+		filtered_logits = tf.gather(pred_logits_1d, index)
+		self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=filtered_logits, labels=filtered_target))
+		self.pred = tf.sigmoid(self.pred_logits)
+
+		# Optimizer : SGD + MOMENTUM with learning rate decay
+		self.global_step = tf.Variable(0, trainable=False)
+		self.lr = tf.placeholder(tf.float32, [], name='learning_rate')
+#		self.lr_decay = tf.train.exponential_decay(self.args.initial_lr, global_step=global_step, decay_steps=10000, decay_rate=0.667, staircase=True)
+#		self.learning_rate = tf.maximum(lr, self.args.lr_lowerbound)
+		optimizer = tf.train.MomentumOptimizer(self.lr, self.args.momentum)
+		grads, vrbs = zip(*optimizer.compute_gradients(self.loss))
+		grad, _ = tf.clip_by_global_norm(grads, self.args.maxgradnorm)
+		self.train_op = optimizer.apply_gradients(zip(grad, vrbs), global_step=self.global_step)
+#		grad_clip = [(tf.clip_by_value(grad, -self.args.maxgradnorm, self.args.maxgradnorm), var) for grad, var in grads]
+		self.tr_vrbs = tf.trainable_variables()
+		for i in self.tr_vrbs:
+			print(i.name)
+
 		self.saver = tf.train.Saver()
 
 	def train(self, train_q_data, train_qa_data, valid_q_data, valid_qa_data, valid_flag_data):

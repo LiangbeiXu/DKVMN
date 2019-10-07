@@ -119,7 +119,7 @@ class Model():
 		self.saver = tf.train.Saver()
 
 
-	def train(self, train_q_data, train_qa_data, valid_q_data, valid_qa_data):
+	def train(self, train_q_data, train_qa_data, valid_q_data, valid_qa_data, valid_flag_data):
 		# q_data, qa_data : [samples, seq_len]
 		shuffle_index = np.random.permutation(train_q_data.shape[0])
 		q_data_shuffled = train_q_data[shuffle_index]

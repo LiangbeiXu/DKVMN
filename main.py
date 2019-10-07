@@ -71,7 +71,7 @@ def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, m
         parser.add_argument('--memory_key_state_dim', type=int, default=20)
         parser.add_argument('--memory_value_state_dim', type=int, default=20)
         parser.add_argument('--final_fc_dim', type=int, default=50)
-        parser.add_argument('--seq_len', type=int, default=200)
+        parser.add_argument('--seq_len', type=int, default=500)
 
     elif dataset == 'synthetic':
         parser.add_argument('--batch_size', type=int, default=32)
@@ -147,11 +147,7 @@ def DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=True, m
     data_directory = os.path.join(args.data_dir, args.dataset)
 
     with tf.Session(config=run_config) as sess:
-        if args.model == 'DKVMN':
-            dkvmn = Model(args, sess, name='DKVMN')
-        elif args.model == 'DKVMN_bi':
-            dkvmn = Model_bi(args, sess, emb_value, bias_value, name='DKVMN_bi')
-
+        dkvmn = Model_bi(args, sess, emb_value, bias_value, name='DKVMN_bi', model=args.model)
         if args.train:
             train_q_data, train_qa_data, train_flag_data = data.load_data(train_user_data)
             print('Train data loaded')
@@ -202,9 +198,9 @@ def pretrain(item, embedding_size, train_data, test_data, stats):
 
 
 def main():
-    dataset_file = '../StudentLearningProcess/Assistment09-problem-single_skill.csv'
-    # dataset_file = '../StudentLearningProcess/kdd_data_2005.csv'
-    DKVMN_exp(dataset_file, mode='new user', item='skill', pretrain_flag=False, model='DKVMN_bi')
+    #dataset_file = '../StudentLearningProcess/Assistment09-problem-single_skill.csv'
+    dataset_file = '../StudentLearningProcess/kdd_data_2005.csv'
+    DKVMN_exp(dataset_file, mode='most recent', item='skill', pretrain_flag=False, model='DKVMN_bi')
 
 
 
